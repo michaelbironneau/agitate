@@ -1,0 +1,7 @@
+title: title
+slug: this-is-a-slug
+teaser: "In this intro, we'll see how to create YAML files for Agitate."
+thumbnail: @file(/files/1.jpeg) #the @file mixin specifies this will be POSTed as a file, not text
+content: @content(/files/md-content.md) #@content specifies this will POSTed as a text, not file
+
+#Note: @file and @content mixins cannot be deeply nested.

@@ -1,0 +1,8 @@
+Use subprocess to call git with the same list of arguments. Listen for commit and --dry-run option since they are the important ones. If the --dry-run option is detected you must not update the API. 
+
+If commit is detected without dry-run argument, do the following:
+1) Use git -diff to get a list of files to update/delete/create
+2) For each file where an action is required, read the template file, pass through any files that need to be uploaded with the request, come up with a json object containing the unserialized form and files.
+3) If deletion/update is required, read the association file to find out what the object ids are (each file has an object id). 
+4) Create requests with correct API keys
+5) Once successful, and only then, pass through request to Git using subprocess.
