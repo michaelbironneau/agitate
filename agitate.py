@@ -1,10 +1,12 @@
 import sys
-from os import sep
+import string
+import os
 import os.path
 import subprocess
-import diffparser
 import requests
 import yaml
+import traceback
+from diffparser import DiffParser
 from dependencies import Dependencies
 
 
@@ -15,7 +17,7 @@ def main():
     #This is the only case we process. If not, return control to Git immediately.
         if "--dry-run" in cmdargs:
             #Ignore this, pass straight to git
-            subprocess.check_output("git " + returnargs)
+            print subprocess.check_output("git " + returnargs)
         else:
             #We need to update the API before committing the changes to remote repo.
             #First, make sure that config options are here and well-formed
@@ -32,45 +34,76 @@ def main():
                 config = yaml.safe_load(configstream)
                 if CheckConfig(config) == 1:  # Failed config test, quit
                     return 0
-            except yaml.YAMLEerror, exc:
+            except yaml.YAMLError, exc:
                 print "Error processing config file."
                 if hasattr(exc, "problem_mark"):
                     mark = exc.problem_mark
                     print("Error location: (%s:%s)") % (mark.line + 1, mark.column + 1)
-            finally:
-                return 0
             try:
-                Parser = diffparser(subprocess.check_output("git diff --name-status --diff-filter=[ADM]"))
+                Parser = DiffParser(subprocess.check_output("git diff --name-status --diff-filter=[ADM]"))
+                BadResponses = 0
                 for f in Parser.getUpdates():
-                    modelname = GetModelName(f)
+                    modelname = getModelName(f)
                     files, content = getContent(f)
                     if "PUT" in config["site"]["HTTP verbs"]:
                         r = requests.put(config["site"]["host"] + "/" + modelname,
                                          files=files, data=content)
+                        print "Updated model " + modelname + ", response " + r.status_code
+                        if r.status_code != 200:
+                            BadResponses += 1
                     else:
                         r = requests.post(config["site"]["host"] + "/" +
                                           modelname + "/" + config["site"]["Update URL"],
                                           files=files, data=content)
+                        print "Updated model " + modelname + ", response " + r.status_code
+                        if r.status_code != 200:
+                            BadResponses += 1
                 for f in Parser.getDeletes():
                     #Update the API
-                    modelname = GetModelName(f)
+                    modelname = getModelName(f)
                     files, content = getContent(f)
                     if "DELETE" in config["site"]["HTTP verbs"]:
                         r = requests.delete(config["site"]["host"] + "/" + modelname,
                                             files=files, data=content)
+                        print "Deleted model " + modelname + ", response " + r.status_code
+                        if r.status_code != 200:
+                            BadResponses += 1
                     else:
                         r = requests.post(config["site"]["host"] + "/" +
                                           modelname + "/" + config["site"]["Delete URL"],
                                           files=files, data=content)
+                        print "Deleted model " + modelname + ", response " + r.status_code
+                        if r.status_code != 200:
+                            BadResponses += 1
                 for f in Parser.getCreates():
                     #Update the API
-                    modelname = GetModelName(f)
+                    modelname = getModelName(f)
                     files, content = getContent(f)
                     r = requests.post(config["site"]["host"] + "/" +
                                       modelname + "/" + config["site"]["Delete URL"],
                                       files=files, data=content)
-                #Return control to git
-                subprocess.check_output("git " + returnargs)
+                    print "Created model " + modelname + ", response " + r.status_code
+                    if r.status_code != 200:
+                            BadResponses += 1
+                #Make sure that everything updated fine on server side
+                if BadResponses == 0:
+                    #Update dependencies
+                    print "--Content was updated on server successfully--"
+                    for m in config["models"]:
+                        deps = Dependencies(m)
+                        deps.UpdateDependencyCache()
+                    #Return control to git
+                    print subprocess.check_output("git " + returnargs)
+                else:
+                    go_on = input("There were " + BadResponses + " unsuccessful updates. Commit repository anyway (y/n)?")
+                    if go_on == "y":
+                        for m in config["models"]:
+                            deps = Dependencies(m)
+                            deps.UpdateDependencyCache()
+                        #Return control to git
+                        print subprocess.check_output("git " + returnargs)
+                    else:
+                        return 0
             except subprocess.CalledProcessError:
                 print "Error invoking git diff"
     else:
@@ -81,8 +114,8 @@ def main():
 #Checks that the config file has the required sections, once it has been
 #successfully validated as valid YAML.
 def CheckConfig(config):
-    if "site" in config:
-        print "Config file must have a 'site' section"
+    if "Site" in config:
+        print "Config file must have a 'Site' section"
         return 1
     else:
         if not "host" in config["site"]:
@@ -104,8 +137,13 @@ def CheckConfig(config):
         return 0
 
 
+def getModelName(f):
+    return f[0:string.find(f, "s/")]
+
+
+#DEPRECATED
 #Gets model name from filename.
-def GetModelName(f):
+def getModelName_Old(f):
     dirname = str.split(os.path.dirname(f, os.sep))[:-2]
     if dirname[-1:] == "s":
         #All's good, the directory name is a plural of the model name, so return that
@@ -120,12 +158,12 @@ def GetModelName(f):
 #Gets JSON-formatted content of file including
 #Looking for external dependencies
 #Automatically returns id if it is available
-def GetContent(f):
+def getContent(f):
     files = {}
     variables = {}
-    modelname = f[0:string.find(f, "s/")] #Got two methods for determining
+    modelname = f[0:string.find(f, "s/")]  # Got two methods for determining
     #model names, not equivalent. This is not  a great idea!
-    dependencies = Dependencies(modelname)
+    dependents = Dependencies(modelname)
     try:
             stream = file(os.path.join(os.getcwd(), f), "r")
             try:
@@ -135,18 +173,19 @@ def GetContent(f):
                         mark = exc.problem_mark
                         print "Error parsing file " + f + ",", exc
                         print("Error location: (%s:%s)") % (mark.line + 1, mark.column + 1)
-        except:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            print "Error reading file: " + f
-            print ''.join('!! ' + line for line in lines)
-            return ""
-    for k,v in model.iteritems():
+    except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+        print "Error reading file: " + f
+        print ''.join('!! ' + line for line in lines)
+        return ""
+    for k, v in model.iteritems():
         if "@file(" in v or "@content(" in v:
-            files[k] = open(os.path.join(os.getcwd(), modelname + "s/", Dependencies.GetRelPath(v)), "rb")
+            files[k] = open(os.path.join(os.getcwd(), modelname + "s/", dependents.GetRelPath(v)), "rb")
         else:
             variables[k] = v
     return files, variables
 
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()

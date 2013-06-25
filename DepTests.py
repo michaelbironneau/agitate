@@ -24,7 +24,7 @@ class DepTests(unittest.TestCase):
 
     def test_GetFile(self):
         f = self.dependencies.GetFiles('posts/introduction2.yaml')
-        bool = (f[1] == 'files/2.jpeg' and f[0] == 'files/md-content.md')
+        bool = (f[1] == 'Thumbnails/3.jpg' and f[0] == 'Markdown/content.md')
         self.assertTrue(bool, 'GetFile test failed')
 
     def test_GetRelPath1(self):
@@ -34,7 +34,7 @@ class DepTests(unittest.TestCase):
         self.assertEqual(self.dependencies.GetRelPath('  @content(this/is/a/file)'), 'this/is/a/file', '@content incorrectly parsed')
 
     def test_FileLookup(self):
-        self.assertEqual(self.dependencies.getDependentModels(self.model + 's/files/md-content.md')[0], 'posts\introduction2.yaml')
+        self.assertEqual(self.dependencies.getDependentModels(self.model + 's/Markdown/content.md')[0], 'posts\introduction2.yaml')
 
 if __name__ == '__main__':
     unittest.main()
