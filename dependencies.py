@@ -23,22 +23,21 @@ import glob
 import yaml
 import string
 import os.path
+import sys
+import traceback
 
 
 class Dependencies(object):
-    "Monitor dependencies of textual models and file uploads"
-
-
-def __init__(self, Model=None):
-    #Note: WorkingPath should NOT end with trailing slash
-    self.Model = Model  # Model name
-    self.Models = glob.glob(self.Model + "s/*.yaml")  # Model contents
-    self.DepList = []  # Todo: Is this line necessary?
-    LoadDependencies()
+    def __init__(self, Model):
+        #Note: WorkingPath should NOT end with trailing slash
+        self.Model = Model  # Model name
+        self.Models = glob.glob(self.Model + "s/*.yaml")  # Model contents
+        self.DepList = []  # Todo: Is this line necessary?
+        self.LoadDependencies()
 
     #Returns a list of dependent models, given an absolute file path f
     #Do this from the cache, or, if no cache is available, construct one
-    def getDependentModels(f):
+    def getDependentModels(self, f):
         #We should have dependencies in self.DepList as this was loaded in __init__
         #f is path relative to base repo, whereas paths in cache are relative to
         #model content. Therefore we need to subtract the first part of the path
@@ -48,26 +47,27 @@ def __init__(self, Model=None):
         for model, dependency_list in self.DepList.iteritems():
             for d in dependency_list:
                 if d == SearchStr:
-                    DependentModels.append(model)
+                    DependentModels.append(string.replace(model, "\\", "/"))  # For readability only - not actually necessary to replace
+        return DependentModels
 
-    def LoadDependencies():
-        if os.path.isfile(self.Model + "s/" + self.Model + ".dependencies"):
+    def LoadDependencies(self):
+        if os.path.isfile(os.path.join(os.getcwd(), self.Model + "s/" + self.Model + ".dependencies")):
             try:
-                depstream = open(self.Model + "s/" + self.Model + ".dependencies", "r")
+                depstream = open(os.path.join(os.getcwd(), self.Model + "s/" + self.Model + ".dependencies"), "r")
                 #Safe_load, being a little paranoid here as this should be a trusted file
-                deps = yaml.safe_load(depstream)
+                self.DepList = yaml.safe_load(depstream)
             except:
-                self.DepList = UpdateDependencyCache()
+                self.DepList = self.UpdateDependencyCache()
         else:
-            self.DepList = UpdateDependencyCache()
+            self.DepList = self.UpdateDependencyCache()
 
     #Stores dependencies of all models, needed if they change before next commit!
-    def UpdateDependencyCache():
-        ThisCache = []
+    def UpdateDependencyCache(self):
+        ThisCache = {}
         for m in self.Models:
-            ThisCache[m] = GetFiles(m)
+            ThisCache[m] = self.GetFiles(m)
         try:
-            f = open(self.Model + "s/" + self.Model + ".dependencies")
+            f = open(os.path.join(os.getcwd(), self.Model + "s/" + self.Model + ".dependencies"), "w")
             f.write(yaml.dump(ThisCache))
             return ThisCache
         except:
@@ -75,38 +75,41 @@ def __init__(self, Model=None):
 
     #Get list of files that model f depends on
     #Assume: path of f is valid and exists
-    def GetFiles(f):
+    def GetFiles(self, f):
         FileList = []
         try:
-            stream = open(f, "r")
+            stream = file(os.path.join(os.getcwd(), f), "r")
             try:
                 model = yaml.load(stream)
-            except yaml.YAMLEerror, exc:
+            except yaml.YAMLError, exc:
                 if hasattr(exc, "problem_mark"):
                         mark = exc.problem_mark
-                        print("Error parsing file " + f)
+                        print "Error parsing file " + f + ",", exc
                         print("Error location: (%s:%s)") % (mark.line + 1, mark.column + 1)
         except:
-            print("Error reading file " + f)
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            print "Error reading file: " + f
+            print ''.join('!! ' + line for line in lines)
             return ""
-        for k in model:
-            if "@file(" in k:
-                FileList.append(self.GetRelPath(k))
-            elif "@content(" in k:
-                FileList.append(self.GetRelPath(k))
+        for k, v in model.iteritems():
+            if "@file(" in v:
+                FileList.append(self.GetRelPath(v))
+            elif "@content(" in v:
+                FileList.append(self.GetRelPath(v))
         return filter(len, FileList)
 
     #Parses line to return working path
-    def GetRelPath(line):
-        closing = string.rfind(line, ")") - 1
-        if closing == -2:
-            print "Missing )"
-            return ""
+    def GetRelPath(self, line):
         if "@file(" in line:
             temp = string.replace(line, "@file(", "")
         elif "@content(" in line:
             temp = string.replace(line, "@content(", "")
-        relpath = string.strip(temp[1:closing])
+        closing = string.rfind(temp, ")")
+        if closing == -1:
+            print "Missing )"
+            return ""
+        relpath = string.strip(temp[0:closing])
         if len(relpath) == 0:
             print "File path appears to be empty!"
         return relpath

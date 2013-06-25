@@ -1,0 +1,3 @@
+A       posts/introduction.yaml
+M       posts/files/md-content.md
+D       posts/introduction.yaml

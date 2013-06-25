@@ -1,6 +1,0 @@
-title: title
-slug: this-is-a-slug
-teaser: "In this intro, we'll see how to create YAML files for Agitate."
-content: @content(/files/md-content.md) #@content specifies this will POSTed as a text, not file
-
-#Note: @file and @content mixins cannot be deeply nested.

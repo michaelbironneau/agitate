@@ -1,0 +1,2 @@
+posts\introduction.yaml: [/files/md-content.md, /files/1.jpeg]
+posts\introduction2.yaml: [files/md-content.md, files/2.jpeg]
