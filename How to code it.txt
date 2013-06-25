@@ -6,3 +6,5 @@ If commit is detected without dry-run argument, do the following:
 3) If deletion/update is required, read the association file to find out what the object ids are (each file has an object id). 
 4) Create requests with correct API keys
 5) Once successful, and only then, pass through request to Git using subprocess.
+
+That's how it works!
