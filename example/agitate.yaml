@@ -1,4 +1,4 @@
-site:
+Site:
     host: "http://mysite.com/path_to_api"
     API  user: username #Optional
     API Key: key #Optional

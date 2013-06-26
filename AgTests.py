@@ -34,7 +34,6 @@ class AgTests(unittest.TestCase):
                 mark = exc.problem_mark
                 print("Error location: (%s:%s)") % (mark.line + 1, mark.column + 1)
 
-
     def test_ModelName(self):
         self.assertEqual(agitate.getModelName("posts/post1234.yaml"), "post")
 
@@ -45,6 +44,33 @@ class AgTests(unittest.TestCase):
     def test_getContentVars(self):
         files, variables = agitate.getContent("posts/introduction2.yaml")
         self.assertEqual(variables["slug"], "this-is-a-slug")
+
+    def test_getIDs(self):
+        self.assertEqual(agitate.getID("posts/introduction2.yaml"), "1234")
+
+    def test_updateIDs(self):
+        agitate.updateID("posts/introduction2.yaml", "2345")
+        self.assertEqual(agitate.getID("posts/introduction2.yaml"), "2345")
+        agitate.updateID("posts/introduction2.yaml", "1234")
+
+    def test_deleteID(self):
+        agitate.deleteID("posts/introduction2.yaml")
+        self.assertEqual(agitate.getID("posts/introduction2.yaml"), None)
+        agitate.updateID("posts/introduction2.yaml", "1234")
+
+    def test_getIDfromResp(self):
+        resp_test = {}
+        resp_test["key1"] = "1234b"
+        resp_test["key2"] = "3151"
+        self.assertEqual(agitate.getIDfromResponse(resp_test), "3151")
+
+    #Additional test to make sure that multiple lines in file are handled OK
+    #due to different creation/update mechanisms.
+    #--Maybe unecessary now that createID and updateID have been merged--
+    def test_multiID(self):
+        agitate.updateID("posts/introduction.yaml", "2345")
+        self.assertEqual(agitate.getID("posts/introduction.yaml"), "2345")
+        agitate.deleteID("posts/introduction.yaml")
 
 if __name__ == '__main__':
     unittest.main()

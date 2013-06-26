@@ -53,9 +53,9 @@ class Dependencies(object):
     def LoadDependencies(self):
         if os.path.isfile(os.path.join(os.getcwd(), self.Model + "s/" + self.Model + ".dependencies")):
             try:
-                depstream = open(os.path.join(os.getcwd(), self.Model + "s/" + self.Model + ".dependencies"), "r")
-                #Safe_load, being a little paranoid here as this should be a trusted file
-                self.DepList = yaml.safe_load(depstream)
+                with open(os.path.join(os.getcwd(), self.Model + "s/" + self.Model + ".dependencies"), "r") as depstream:
+                    #Safe_load, being a little paranoid here as this should be a trusted file
+                    self.DepList = yaml.safe_load(depstream)
             except:
                 self.DepList = self.UpdateDependencyCache()
         else:
@@ -67,9 +67,9 @@ class Dependencies(object):
         for m in self.Models:
             ThisCache[m] = self.GetFiles(m)
         try:
-            f = open(os.path.join(os.getcwd(), self.Model + "s/" + self.Model + ".dependencies"), "w")
-            f.write(yaml.dump(ThisCache))
-            return ThisCache
+            with open(os.path.join(os.getcwd(), self.Model + "s/" + self.Model + ".dependencies"), "w") as f:
+                f.write(yaml.dump(ThisCache))
+                return ThisCache
         except:
             "Error writing file dependency cache for " + self.Model + "s"
 

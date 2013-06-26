@@ -12,6 +12,7 @@ class DepTests(unittest.TestCase):
         self.model = 'post'
         os.chdir(os.path.join(os.getcwd(), 'example'))
         self.dependencies = Dependencies(self.model)
+        self.dependencies.UpdateDependencyCache()
 
     def tearDown(self):
         os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -34,7 +35,7 @@ class DepTests(unittest.TestCase):
         self.assertEqual(self.dependencies.GetRelPath('  @content(this/is/a/file)'), 'this/is/a/file', '@content incorrectly parsed')
 
     def test_FileLookup(self):
-        self.assertEqual(self.dependencies.getDependentModels(self.model + 's/Markdown/content.md')[0], 'posts\introduction2.yaml')
+        self.assertEqual(self.dependencies.getDependentModels(self.model + 's/Markdown/content.md')[0], 'posts/introduction2.yaml')
 
 if __name__ == '__main__':
     unittest.main()
