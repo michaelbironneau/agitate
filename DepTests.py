@@ -17,8 +17,8 @@ class DepTests(unittest.TestCase):
     def tearDown(self):
         os.chdir(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-    def test_ModelLoad(self):
-        self.assertEqual(len(self.dependencies.Models), 2, 'Incorrect load - not enough models loaded')
+    def test_ResourceLoad(self):
+        self.assertEqual(len(self.dependencies.Resources), 2, 'Incorrect load - not enough resources loaded')
 
     def test_DepFileCreated(self):
         self.assertTrue(os.path.isfile(self.model + "s/" + self.model + ".dependencies"), 'Dependency file not created')
@@ -35,7 +35,7 @@ class DepTests(unittest.TestCase):
         self.assertEqual(self.dependencies.GetRelPath('  @content(this/is/a/file)'), 'this/is/a/file', '@content incorrectly parsed')
 
     def test_FileLookup(self):
-        self.assertEqual(self.dependencies.getDependentModels(self.model + 's/Markdown/content.md')[0], 'posts/introduction2.yaml')
+        self.assertEqual(self.dependencies.getDependentResources(self.model + 's/Markdown/content.md')[0], 'posts/introduction2.yaml')
 
 if __name__ == '__main__':
     unittest.main()

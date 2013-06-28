@@ -26,15 +26,15 @@ class RequestTests(unittest.TestCase):
                 break
 
     def testPut(self):
-        var = agitate.updateModel(self.f)
+        var = agitate.updateResource(self.f)
         self.assertEqual(var, 0)
 
     def testPost(self):
-        var = agitate.createModel(self.f)
+        var = agitate.createResource(self.f)
         self.assertEqual(var, 0)
 
     def testDelete(self):
-        var = agitate.deleteModel(self.f)
+        var = agitate.deleteResource(self.f)
         self.assertEqual(var, 0)
 
 if __name__ == '__main__':

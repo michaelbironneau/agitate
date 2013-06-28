@@ -31,11 +31,11 @@ def main():
                 Parser = DiffParser(subprocess.check_output("git diff --name-status --diff-filter=[ADM]"))
                 BadResponses = 0
                 for f in Parser.getUpdates():
-                    BadResponses += updateModel(f)
+                    BadResponses += updateResource(f)
                 for f in Parser.getDeletes():
-                    BadResponses += deleteModel(f)
+                    BadResponses += deleteResource(f)
                 for f in Parser.getCreates():
-                    BadResponses += createModel(f)
+                    BadResponses += createResource(f)
                 if BadResponses == 0:
                     #Update dependencies
                     print "--Content was updated on server successfully--"
@@ -65,8 +65,8 @@ def main():
 #API REQUESTS
 #------------
 #
-#Update model using PUT method or a POST request to alternate URL, if specified in config
-def updateModel(f):
+#Update resource using PUT method or a POST request to alternate URL, if specified in config
+def updateResource(f):
     global config
     modelname = getModelName(f)
     files, content = getContent(f)
@@ -80,15 +80,15 @@ def updateModel(f):
         r = requests.post(config["Site"]["Host"] + "/" +
                           modelname + "s/" + config["Site"]["Update URL"] + "/" + str(fid),
                           files=files, data=content)
-    print "Updated model " + modelname + ", response " + str(r.status_code)
+    print "Updated resource " + modelname + ", response " + str(r.status_code)
     if r.status_code >= 200 and r.status_code <= 299:
         return 0
     else:
         return 1
 
 
-#Delete model using DELETE method or a POST request to alternate URL, if specified in config
-def deleteModel(f):
+#Delete resource using DELETE method or a POST request to alternate URL, if specified in config
+def deleteResource(f):
     global config
     modelname = getModelName(f)
     files, content = getContent(f, True)
@@ -102,15 +102,15 @@ def deleteModel(f):
         r = requests.post(config["Site"]["Host"] + "/" +
                           modelname + "s/" + config["Site"]["Delete URL"] + "/" + fid,
                           data=content)
-    print "Deleted model " + modelname + ", response " + str(r.status_code)
+    print "Deleted resource " + modelname + ", response " + str(r.status_code)
     if r.status_code >= 200 and r.status_code <= 299:
         return 0
     else:
         return 1
 
 
-#Create model using POST request to /models or to alternate URL, if specified in config
-def createModel(f):
+#Create resource using POST request to /models or to alternate URL, if specified in config
+def createResource(f):
     global config
     modelname = getModelName(f)
     files, content = getContent(f)
@@ -122,7 +122,7 @@ def createModel(f):
         r = requests.post(config["Site"]["Host"] + "/" +
                           modelname + "s",
                           files=files, data=content)
-    print "Created model " + modelname + ", response " + str(r.status_code)
+    print "Created resource " + modelname + ", response " + str(r.status_code)
     if r.status_code >= 200 and r.status_code <= 299:
         return updateID(f, getIDfromResponse(json.loads(r.text.decode('utf-8'))[0]))
     else:
@@ -179,7 +179,7 @@ def getContent(f, isDelete=False):
         try:
                 stream = file(os.path.join(os.getcwd(), f), "r")
                 try:
-                    model = yaml.load(stream)
+                    resource = yaml.load(stream)
                 except yaml.YAMLError, exc:
                     if hasattr(exc, "problem_mark"):
                             mark = exc.problem_mark
@@ -191,7 +191,7 @@ def getContent(f, isDelete=False):
             print "Error reading file: " + f
             print ''.join('!! ' + line for line in lines)
             return ""
-        for k, v in model.iteritems():
+        for k, v in resource.iteritems():
             if "@file(" in v:
                 fpath = os.path.join(os.getcwd(), modelname + "s/", dependents.GetRelPath(v))
                 if os.path.isfile(fpath):
@@ -252,15 +252,12 @@ def loadConfigFile():
 #---------------------------------------------------------
 #
 #Appends a resource's id to corresponding ID file after creation
-#It's not really necessary to include the model since that
-#can be interred from the key, but it's available to the
-#calling method anyway so it saves some overhead.
 #
 #TODO: Replace YAML parser by own routine, it will probably be
 #a bit faster and we don't require the power of YAML to parse
 #this simple file format
 #Note: Will create the key if not available
-#Note2: In theory, the id of a model does not need to be updated
+#Note2: In theory, the id of a resource does not need to be updated
 #but maybe we should account for this anyway?
 def updateID(f, value):
     model = getModelName(f)

@@ -22,7 +22,7 @@ class DiffParser(object):
         Creates = []
         for k, v in self.files.iteritems():
             if k == "A":  # Added files
-                #Isolate model files
+                #Isolate resource files
                 #1: Check in model directories
                 for m in self.Models:
                     if string.find(v, m + "s/") == 0 and os.path.splitext(v)[1] == ".yaml":
@@ -36,15 +36,15 @@ class DiffParser(object):
         Updates = []
         for k, v in self.files.iteritems():
             if k == "M":  # Modified files
-                #Isolate model files
+                #Isolate resource files
                 #1: Check in model directories
                 for m in self.Models:
                     if string.find(v, m + "s/") == 0 and os.path.splitext(v)[1] == ".yaml":
                         Updates.append(v)
                         break
-                #Do any models depend on the modified file? If so they need updating.
+                #Do any resources depend on the modified file? If so they need updating.
                 modelname = v[0:string.find(v, "s/")]
-                dependents = self.dependencies[modelname].getDependentModels(v)
+                dependents = self.dependencies[modelname].getDependentResources(v)
                 if len(dependents) > 0:
                     Updates += dependents
         return Updates
