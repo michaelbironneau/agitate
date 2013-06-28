@@ -14,6 +14,7 @@ config = {}
 
 
 def main():
+    global config
     cmdargs = sys.argv[1:]
     returnargs = " ".join(cmdargs)
     if str(cmdargs[1]) == "commit":
@@ -66,19 +67,20 @@ def main():
 #
 #Update model using PUT method or a POST request to alternate URL, if specified in config
 def updateModel(f):
+    global config
     modelname = getModelName(f)
-    files, content = getContent(f, config)
+    files, content = getContent(f)
     fid = getID(f)
     if fid is None:
         return 1
     if "PUT" in config["Site"]["HTTP verbs"]:
-        r = requests.request(method="PUT", url=config["Site"]["Host"] + "/" + modelname + "s/" + fid,
+        r = requests.request(method="PUT", url=config["Site"]["Host"] + "/" + modelname + "s/" + str(fid),
                              files=files, data=content)
     else:
         r = requests.post(config["Site"]["Host"] + "/" +
-                          modelname + "s/" + config["Site"]["Update URL"] + "/" + fid,
+                          modelname + "s/" + config["Site"]["Update URL"] + "/" + str(fid),
                           files=files, data=content)
-    print "Updated model " + modelname + ", response " + r.status_code
+    print "Updated model " + modelname + ", response " + str(r.status_code)
     if r.status_code >= 200 and r.status_code <= 299:
         return 0
     else:
@@ -87,19 +89,20 @@ def updateModel(f):
 
 #Delete model using DELETE method or a POST request to alternate URL, if specified in config
 def deleteModel(f):
+    global config
     modelname = getModelName(f)
-    files, content = getContent(f, config, True)
+    files, content = getContent(f, True)
     fid = getID(f)
     if fid is None:
         return 1
     if "DELETE" in config["Site"]["HTTP verbs"]:
-            r = requests.delete(config["Site"]["Host"] + "/" + modelname + "s/" + fid,
+            r = requests.delete(config["Site"]["Host"] + "/" + modelname + "s/" + str(fid),
                                 data=content)
     else:
         r = requests.post(config["Site"]["Host"] + "/" +
                           modelname + "s/" + config["Site"]["Delete URL"] + "/" + fid,
                           data=content)
-    print "Deleted model " + modelname + ", response " + r.status_code
+    print "Deleted model " + modelname + ", response " + str(r.status_code)
     if r.status_code >= 200 and r.status_code <= 299:
         return 0
     else:
@@ -108,8 +111,9 @@ def deleteModel(f):
 
 #Create model using POST request to /models or to alternate URL, if specified in config
 def createModel(f):
+    global config
     modelname = getModelName(f)
-    files, content = getContent(f, config)
+    files, content = getContent(f)
     if "Create URL" in config["Site"]:
             r = requests.post(config["Site"]["Host"] + "/" +
                               modelname + "s/" + config["Site"]["Create URL"],
@@ -118,8 +122,9 @@ def createModel(f):
         r = requests.post(config["Site"]["Host"] + "/" +
                           modelname + "s",
                           files=files, data=content)
+    print "Created model " + modelname + ", response " + str(r.status_code)
     if r.status_code >= 200 and r.status_code <= 299:
-        return updateID(f, getIDfromResponse(json.loads(r.text.decode('utf-8'))[0]), 1234)
+        return updateID(f, getIDfromResponse(json.loads(r.text.decode('utf-8'))[0]))
     else:
         return 1
 #=======================================================================================
@@ -131,6 +136,7 @@ def createModel(f):
 #Checks that the config file has the required sections, once it has been
 #successfully validated as valid YAML.
 def CheckConfig(LoadConfig=None):
+    global config
     if not LoadConfig is None:
         config = LoadConfig
     if not "Site" in config:
@@ -163,7 +169,8 @@ def getModelName(f):
 #Gets JSON-formatted content of file including
 #Looking for external dependencies
 #Automatically returns id if it is available
-def getContent(f, config, isDelete=False):
+def getContent(f, isDelete=False):
+    global config
     files = {}
     variables = {}
     modelname = f[0:string.find(f, "s/")]
@@ -209,7 +216,8 @@ def getContent(f, config, isDelete=False):
 
 
 def loadConfigFile():
-     #First, make sure that config options are here and well-formed
+    #First, make sure that config options are here and well-formed
+    global config
     if os.path.isfile("agitate.yaml"):
         configpath = "agitate.yaml"
     elif os.path.isfile(".agitate"):
@@ -230,6 +238,8 @@ def loadConfigFile():
             print("Error location: (%s:%s)") % (mark.line + 1, mark.column + 1)
         return None
     except:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_traceback)
         print "Error accessing config file"
         return None
     return config

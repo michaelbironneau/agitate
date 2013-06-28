@@ -39,7 +39,9 @@ class AgTests(unittest.TestCase):
 
     def test_getContentFiles(self):
         files, variables = agitate.getContent("posts/introduction2.yaml")
-        self.assertEqual(len(files), 2)  # This isn't enough to guarantee a good request
+        self.assertEqual(len(files), 1)  # This isn't enough to guarantee a good request
+        #Note: Even though content.md is referenced its content is read and passed in POST payload
+        #so it should NOT  come up as a file! (this was fixed in commit d4a10b9)
 
     def test_getContentVars(self):
         files, variables = agitate.getContent("posts/introduction2.yaml")

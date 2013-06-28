@@ -1,3 +1,3 @@
 A       posts/introduction.yaml
-M       posts/files/md-content.md
+M       posts/Markdown/content.md
 D       posts/introduction.yaml
