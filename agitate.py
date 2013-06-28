@@ -30,64 +30,11 @@ def main():
                 Parser = DiffParser(subprocess.check_output("git diff --name-status --diff-filter=[ADM]"))
                 BadResponses = 0
                 for f in Parser.getUpdates():
-                    modelname = getModelName(f)
-                    files, content = getContent(f, config)
-                    fid = getID(f)
-                    if fid is None:
-                        print "No ID available to update API with for " + f + "!"
-                        BadResponses += 1
-                    else:
-                        if "PUT" in config["Site"]["HTTP verbs"]:
-                            r = requests.put(config["Site"]["Host"] + "/" + modelname + "s/" + fid,
-                                             files=files, data=content)
-                            print "Updated model " + modelname + ", response " + r.status_code
-                            if r.status_code < 200 or r.status_code > 299:
-                                BadResponses += 1
-                        else:
-                            r = requests.post(config["Site"]["Host"] + "/" +
-                                              modelname + "s/" + config["Site"]["Update URL"] + "/" + fid,
-                                              files=files, data=content)
-                            print "Updated model " + modelname + ", response " + r.status_code
-                            if r.status_code < 200 or r.status_code > 299:
-                                BadResponses += 1
-
+                    BadResponses += updateModel(f)
                 for f in Parser.getDeletes():
-                    #Update the API
-                    modelname = getModelName(f)
-                    files, content = getContent(f, config)
-                    fid = getID(f)
-                    if fid is None:
-                        print "No ID available to update API with for " + f + "!"
-                        BadResponses += 1
-                    else:
-                        if "DELETE" in config["Site"]["HTTP verbs"]:
-                            r = requests.delete(config["Site"]["Host"] + "/" + modelname + "s/" + fid,
-                                                files=files, data=content)
-                            print "Deleted model " + modelname + ", response " + r.status_code
-                            if r.status_code >= 200 and r.status_code <= 299:
-                                deleteID(f)
-                            else:
-                                BadResponses += 1
-                        else:
-                            r = requests.post(config["Site"]["Host"] + "/" +
-                                              modelname + "s/" + config["Site"]["Delete URL"] + "/" + fid,
-                                              files=files, data=content)
-                            print "Deleted model " + modelname + ", response " + r.status_code
-                            if r.status_code < 200 or r.status_code > 299:
-                                BadResponses += 1
+                    BadResponses += deleteModel(f)
                 for f in Parser.getCreates():
-                    #Update the API
-                    modelname = getModelName(f)
-                    files, content = getContent(f, config)
-                    r = requests.post(config["Site"]["Host"] + "/" +
-                                      modelname + "s/" + config["Site"]["Create URL"],
-                                      files=files, data=content)
-                    print "Created model " + modelname + ", response " + r.status_code
-                    if r.status_code >= 200 and r.status_code <= 299:
-                        updateID(f, getIDfromResponse(json.loads(r.json())))
-                    else:
-                        BadResponses += 1
-                #Make sure that everything updated fine on server side
+                    BadResponses += createModel(f)
                 if BadResponses == 0:
                     #Update dependencies
                     print "--Content was updated on server successfully--"
@@ -172,13 +119,15 @@ def createModel(f):
                           modelname + "s",
                           files=files, data=content)
     if r.status_code >= 200 and r.status_code <= 299:
-        updateID(f, getIDfromResponse(json.loads(r.text.decode('utf-8'))[0]), 1234)
-        return 0
+        return updateID(f, getIDfromResponse(json.loads(r.text.decode('utf-8'))[0]), 1234)
     else:
         return 1
 #=======================================================================================
 
-
+#=======================================================================================
+#VARIOUS HELPER METHODS
+#----------------------
+#
 #Checks that the config file has the required sections, once it has been
 #successfully validated as valid YAML.
 def CheckConfig(LoadConfig=None):
@@ -285,8 +234,10 @@ def loadConfigFile():
         return None
     return config
 
+#===============================================================================
 
-#================================================================
+
+#===============================================================================
 #ID FILE MANAGEMENT (associates resource ids to resources)
 #---------------------------------------------------------
 #
@@ -313,15 +264,19 @@ def updateID(f, value):
                 ids[f] = value
             with open(idfilepath, "w") as afile:
                 afile.write(yaml.dump(ids))
+            return 0
         except:
             print "Error writing to ID file, please check folder permissions?"
+            return 1
     else:
         try:
             line = f + ": " + value
             with open(idfilepath, "w") as afile:
                 afile.write(line)
+            return 0
         except:
             print "Error writing to ID file, please check folder permissions"
+            return 1
 
 
 #Gets resource ID from the filename
