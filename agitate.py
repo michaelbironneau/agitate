@@ -10,6 +10,8 @@ import traceback
 from diffparser import DiffParser
 from dependencies import Dependencies
 
+config = {}
+
 
 def main():
     cmdargs = sys.argv[1:]
@@ -29,59 +31,59 @@ def main():
                 BadResponses = 0
                 for f in Parser.getUpdates():
                     modelname = getModelName(f)
-                    files, content = getContent(f)
+                    files, content = getContent(f, config)
                     fid = getID(f)
                     if fid is None:
                         print "No ID available to update API with for " + f + "!"
                         BadResponses += 1
                     else:
-                        if "PUT" in config["site"]["HTTP verbs"]:
-                            r = requests.put(config["site"]["host"] + "/" + modelname + "/" + getID(f),
+                        if "PUT" in config["Site"]["HTTP verbs"]:
+                            r = requests.put(config["Site"]["Host"] + "/" + modelname + "s/" + fid,
                                              files=files, data=content)
                             print "Updated model " + modelname + ", response " + r.status_code
-                            if r.status_code != 200:
+                            if r.status_code < 200 or r.status_code > 299:
                                 BadResponses += 1
                         else:
-                            r = requests.post(config["site"]["host"] + "/" +
-                                              modelname + "/" + config["site"]["Update URL"],
+                            r = requests.post(config["Site"]["Host"] + "/" +
+                                              modelname + "s/" + config["Site"]["Update URL"] + "/" + fid,
                                               files=files, data=content)
                             print "Updated model " + modelname + ", response " + r.status_code
-                            if r.status_code != 200:
+                            if r.status_code < 200 or r.status_code > 299:
                                 BadResponses += 1
 
                 for f in Parser.getDeletes():
                     #Update the API
                     modelname = getModelName(f)
-                    files, content = getContent(f)
+                    files, content = getContent(f, config)
                     fid = getID(f)
                     if fid is None:
                         print "No ID available to update API with for " + f + "!"
                         BadResponses += 1
                     else:
-                        if "DELETE" in config["site"]["HTTP verbs"]:
-                            r = requests.delete(config["site"]["host"] + "/" + modelname,
+                        if "DELETE" in config["Site"]["HTTP verbs"]:
+                            r = requests.delete(config["Site"]["Host"] + "/" + modelname + "s/" + fid,
                                                 files=files, data=content)
                             print "Deleted model " + modelname + ", response " + r.status_code
-                            if r.status_code == 200:
+                            if r.status_code >= 200 and r.status_code <= 299:
                                 deleteID(f)
                             else:
                                 BadResponses += 1
                         else:
-                            r = requests.post(config["site"]["host"] + "/" +
-                                              modelname + "/" + config["site"]["Delete URL"],
+                            r = requests.post(config["Site"]["Host"] + "/" +
+                                              modelname + "s/" + config["Site"]["Delete URL"] + "/" + fid,
                                               files=files, data=content)
                             print "Deleted model " + modelname + ", response " + r.status_code
-                            if r.status_code != 200:
+                            if r.status_code < 200 or r.status_code > 299:
                                 BadResponses += 1
                 for f in Parser.getCreates():
                     #Update the API
                     modelname = getModelName(f)
-                    files, content = getContent(f)
-                    r = requests.post(config["site"]["host"] + "/" +
-                                      modelname + "/" + config["site"]["Delete URL"],
+                    files, content = getContent(f, config)
+                    r = requests.post(config["Site"]["Host"] + "/" +
+                                      modelname + "s/" + config["Site"]["Create URL"],
                                       files=files, data=content)
                     print "Created model " + modelname + ", response " + r.status_code
-                    if r.status_code == 200:
+                    if r.status_code >= 200 and r.status_code <= 299:
                         updateID(f, getIDfromResponse(json.loads(r.json())))
                     else:
                         BadResponses += 1
@@ -111,15 +113,83 @@ def main():
         print subprocess.check_output("git " + returnargs)
 
 
+#=========================================================================================
+#API REQUESTS
+#------------
+#
+#Update model using PUT method or a POST request to alternate URL, if specified in config
+def updateModel(f):
+    modelname = getModelName(f)
+    files, content = getContent(f, config)
+    fid = getID(f)
+    if fid is None:
+        return 1
+    if "PUT" in config["Site"]["HTTP verbs"]:
+        r = requests.request(method="PUT", url=config["Site"]["Host"] + "/" + modelname + "s/" + fid,
+                             files=files, data=content)
+    else:
+        r = requests.post(config["Site"]["Host"] + "/" +
+                          modelname + "s/" + config["Site"]["Update URL"] + "/" + fid,
+                          files=files, data=content)
+    print "Updated model " + modelname + ", response " + r.status_code
+    if r.status_code >= 200 and r.status_code <= 299:
+        return 0
+    else:
+        return 1
+
+
+#Delete model using DELETE method or a POST request to alternate URL, if specified in config
+def deleteModel(f):
+    modelname = getModelName(f)
+    files, content = getContent(f, config, True)
+    fid = getID(f)
+    if fid is None:
+        return 1
+    if "DELETE" in config["Site"]["HTTP verbs"]:
+            r = requests.delete(config["Site"]["Host"] + "/" + modelname + "s/" + fid,
+                                data=content)
+    else:
+        r = requests.post(config["Site"]["Host"] + "/" +
+                          modelname + "s/" + config["Site"]["Delete URL"] + "/" + fid,
+                          data=content)
+    print "Deleted model " + modelname + ", response " + r.status_code
+    if r.status_code >= 200 and r.status_code <= 299:
+        return 0
+    else:
+        return 1
+
+
+#Create model using POST request to /models or to alternate URL, if specified in config
+def createModel(f):
+    modelname = getModelName(f)
+    files, content = getContent(f, config)
+    if "Create URL" in config["Site"]:
+            r = requests.post(config["Site"]["Host"] + "/" +
+                              modelname + "s/" + config["Site"]["Create URL"],
+                              files=files, data=content)
+    else:
+        r = requests.post(config["Site"]["Host"] + "/" +
+                          modelname + "s",
+                          files=files, data=content)
+    if r.status_code >= 200 and r.status_code <= 299:
+        updateID(f, getIDfromResponse(json.loads(r.text.decode('utf-8'))[0]), 1234)
+        return 0
+    else:
+        return 1
+#=======================================================================================
+
+
 #Checks that the config file has the required sections, once it has been
 #successfully validated as valid YAML.
-def CheckConfig(config):
+def CheckConfig(LoadConfig=None):
+    if not LoadConfig is None:
+        config = LoadConfig
     if not "Site" in config:
         print "Config file must have a 'Site' section"
         return 1
     else:
-        if not "host" in config["Site"]:
-            print "Config file must specify host"
+        if not "Host" in config["Site"]:
+            print "Config file must specify Host"
             return 1
         if "HTTP verbs" in config["Site"]:
             #Is it necessary to force the user to write this every time?
@@ -144,32 +214,48 @@ def getModelName(f):
 #Gets JSON-formatted content of file including
 #Looking for external dependencies
 #Automatically returns id if it is available
-def getContent(f):
+def getContent(f, config, isDelete=False):
     files = {}
     variables = {}
-    modelname = f[0:string.find(f, "s/")]  # Got two methods for determining
-    #model names, not equivalent. This is not  a great idea!
-    dependents = Dependencies(modelname)
-    try:
-            stream = file(os.path.join(os.getcwd(), f), "r")
-            try:
-                model = yaml.load(stream)
-            except yaml.YAMLError, exc:
-                if hasattr(exc, "problem_mark"):
-                        mark = exc.problem_mark
-                        print "Error parsing file " + f + ",", exc
-                        print("Error location: (%s:%s)") % (mark.line + 1, mark.column + 1)
-    except:
-        exc_type, exc_value, exc_traceback = sys.exc_info()
-        lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-        print "Error reading file: " + f
-        print ''.join('!! ' + line for line in lines)
-        return ""
-    for k, v in model.iteritems():
-        if "@file(" in v or "@content(" in v:
-            files[k] = open(os.path.join(os.getcwd(), modelname + "s/", dependents.GetRelPath(v)), "rb")
-        else:
+    modelname = f[0:string.find(f, "s/")]
+    if isDelete is False:  # For deletes, we only want to pass params like API keys
+        dependents = Dependencies(modelname)
+        try:
+                stream = file(os.path.join(os.getcwd(), f), "r")
+                try:
+                    model = yaml.load(stream)
+                except yaml.YAMLError, exc:
+                    if hasattr(exc, "problem_mark"):
+                            mark = exc.problem_mark
+                            print "Error parsing file " + f + ",", exc
+                            print("Error location: (%s:%s)") % (mark.line + 1, mark.column + 1)
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            print "Error reading file: " + f
+            print ''.join('!! ' + line for line in lines)
+            return ""
+        for k, v in model.iteritems():
+            if "@file(" in v:
+                fpath = os.path.join(os.getcwd(), modelname + "s/", dependents.GetRelPath(v))
+                if os.path.isfile(fpath):
+                    files[k] = open(fpath, "rb")
+                else:
+                    print "Dependent file " + fpath + " not found."
+            elif "@content(" in v:
+                fpath = os.path.join(os.getcwd(), modelname + "s/", dependents.GetRelPath(v))
+                if os.path.isfile(fpath):
+                    with open(fpath, "r") as afile:
+                        variables[k] = afile.read()
+                else:
+                    print "Dependent file " + fpath + " not found."
+            else:
+                variables[k] = v
+    if "Extra" in config["Site"]:
+        for k, v in config["Site"]["Extra"].iteritems():
             variables[k] = v
+    else:
+        print config["Site"]
     return files, variables
 
 
@@ -186,7 +272,7 @@ def loadConfigFile():
         with open(configpath, "r") as configstream:
             #Safe_load as we don't know that user won't use untrusted config file
             config = yaml.safe_load(configstream)
-        if CheckConfig(config) == 1:  # Failed config test, quit
+        if CheckConfig() == 1:  # Failed config test, quit
             return None
     except yaml.YAMLError, exc:
         print "Error processing config file."
@@ -200,6 +286,10 @@ def loadConfigFile():
     return config
 
 
+#================================================================
+#ID FILE MANAGEMENT (associates resource ids to resources)
+#---------------------------------------------------------
+#
 #Appends a resource's id to corresponding ID file after creation
 #It's not really necessary to include the model since that
 #can be interred from the key, but it's available to the
@@ -245,9 +335,11 @@ def getID(f):
             if f in ids:
                 return ids[f]
             else:
+                print "Cannot find resource id for " + f
                 return None
         except:
             print "Error writing to ID file, please check folder permissions?"
+            return None
 
 
 def deleteID(f):
@@ -273,9 +365,10 @@ def deleteID(f):
 #This is the value of the first numeric key in resp
 def getIDfromResponse(resp):
     for key, value in resp.iteritems():
-        if value.isdigit():
+        if str(value).isdigit():
             return value
     return None
+#============================================================================
 
 
 if __name__ == "__main__":

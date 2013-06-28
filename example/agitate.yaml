@@ -1,12 +1,12 @@
 Site:
-    host: "http://mysite.com/path_to_api"
-    API  user: username #Optional
-    API Key: key #Optional
-    Additional Parameters: #Parameters that must be sent out with every API request
-        param1: script --option #Program/script to call that generates the parameter
+    Host: "http://localhost/AgitateTest/laravel/public"
+    Extra: #Parameters that must be sent out with every API request
+        Private_key : key
+        Public_key : key
+        #param1: script --option #Program/script to call that generates the parameter
     HTTP verbs: [GET, PUT, POST, DELETE] #Requires at least GET and POST
-    Create URL: "/Create" #Optional, in case can't POST to host/model directly. Will use POST.
-    Update URL: "/Update" #Optional, in case PUT method not allowed to host/model. Will use POST.
-    Delete URL: "/Delete" #Optional, in case DELETE method not allowed to host/model. Will use POST.
+    #Create URL: "/Create" #Optional, in case can't POST to host/model directly. Will use POST.
+    #Update URL: "/Update" #Optional, in case PUT method not allowed to host/model. Will use POST.
+    #Delete URL: "/Delete" #Optional, in case DELETE method not allowed to host/model. Will use POST.
 Models: [Posts] #This tells Agitate which folders to watch
 #There may be additional sections on templating and so on, but I haven't got any ideas for this so far.
